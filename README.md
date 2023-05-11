@@ -1,1 +1,2 @@
-# Analisis_de_Algoritmos_RR
+# Genealogy LCA Algorithm - Algorithm Analysis
+The purpose of the project is to use a public genealogy database with at least 1000 entries (such as WikiTree) to extract family tree data, from which we will represent family relationships as a directed acyclic graph (DAG), and implement an LCA algorithm -- to which we will perform an asymptotic analysis -- to find the most recent common ancestor of two people in the dataset.
