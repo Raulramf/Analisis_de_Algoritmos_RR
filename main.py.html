@@ -1,0 +1,155 @@
+<html>
+<head>
+<title>main.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #808080;}
+.s3 { color: #6a8759;}
+.s4 { color: #6897bb;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+main.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">argparse</span>
+<span class="s0">import </span><span class="s1">requests</span>
+<span class="s0">import </span><span class="s1">networkx </span><span class="s0">as </span><span class="s1">nx</span>
+<span class="s0">import </span><span class="s1">pygraphviz </span><span class="s0">as </span><span class="s1">pgv</span>
+<span class="s0">from </span><span class="s1">networkx.drawing.nx_agraph </span><span class="s0">import </span><span class="s1">graphviz_layout</span>
+<span class="s0">import </span><span class="s1">matplotlib.pyplot </span><span class="s0">as </span><span class="s1">plt</span>
+
+<span class="s2"># WikiTreeAPI class</span>
+<span class="s0">class </span><span class="s1">WikiTreeAPI:</span>
+    <span class="s0">def </span><span class="s1">__init__(self):</span>
+        <span class="s1">self.base_url = </span><span class="s3">&quot;https://api.wikitree.com/api.php&quot;</span>
+
+    <span class="s0">def </span><span class="s1">fetch_family_tree_data(self</span><span class="s0">, </span><span class="s1">individual1</span><span class="s0">, </span><span class="s1">individual2):</span>
+        <span class="s1">data1 = self.fetch_ancestors(individual1)</span>
+        <span class="s1">data2 = self.fetch_ancestors(individual2)</span>
+        <span class="s0">if not </span><span class="s1">data1  </span><span class="s0">or not </span><span class="s1">data2:</span>
+            <span class="s0">return None</span>
+        <span class="s1">ancestors1 = data1[</span><span class="s4">0</span><span class="s1">][</span><span class="s3">'ancestors'</span><span class="s1">]</span>
+        <span class="s1">ancestors2 = data2[</span><span class="s4">0</span><span class="s1">][</span><span class="s3">'ancestors'</span><span class="s1">]</span>
+        <span class="s0">return </span><span class="s1">ancestors1</span><span class="s0">, </span><span class="s1">ancestors2</span>
+
+    <span class="s0">def </span><span class="s1">fetch_ancestors(self</span><span class="s0">, </span><span class="s1">individual_id):</span>
+        <span class="s1">params = {</span>
+            <span class="s3">&quot;action&quot;</span><span class="s1">: </span><span class="s3">&quot;getAncestors&quot;</span><span class="s0">,</span>
+            <span class="s3">&quot;format&quot;</span><span class="s1">: </span><span class="s3">&quot;json&quot;</span><span class="s0">,</span>
+            <span class="s3">&quot;key&quot;</span><span class="s1">: individual_id</span><span class="s0">,</span>
+            <span class="s3">&quot;depth&quot;</span><span class="s1">: </span><span class="s4">10000000</span>
+        <span class="s1">}</span>
+        <span class="s1">response = requests.get(self.base_url</span><span class="s0">, </span><span class="s1">params=params)</span>
+        <span class="s0">try</span><span class="s1">:</span>
+            <span class="s1">response.raise_for_status()</span>
+        <span class="s0">except </span><span class="s1">requests.exceptions.HTTPError </span><span class="s0">as </span><span class="s1">err:</span>
+            <span class="s1">print(</span><span class="s3">f&quot;HTTP error occurred while fetching ancestors for </span><span class="s0">{</span><span class="s1">individual_id</span><span class="s0">}</span><span class="s3">: </span><span class="s0">{</span><span class="s1">err</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+            <span class="s0">return None</span>
+        <span class="s0">return </span><span class="s1">response.json()</span>
+
+<span class="s2"># FamilyTreeDAG class</span>
+<span class="s0">class </span><span class="s1">FamilyTreeDAG:</span>
+    <span class="s0">def </span><span class="s1">__init__(self</span><span class="s0">, </span><span class="s1">ancestors1</span><span class="s0">, </span><span class="s1">ancestors2</span><span class="s0">, </span><span class="s1">individual1</span><span class="s0">, </span><span class="s1">individual2):</span>
+        <span class="s1">self.graph = nx.DiGraph()</span>
+        <span class="s1">self.graph.add_node(individual1)</span>
+        <span class="s1">self.graph.add_node(individual2)</span>
+        <span class="s1">self._build_graph(ancestors1)</span>
+        <span class="s1">self._build_graph(ancestors2)</span>
+
+    <span class="s0">def </span><span class="s1">_build_graph(self</span><span class="s0">, </span><span class="s1">ancestors):</span>
+        <span class="s0">for </span><span class="s1">ancestor </span><span class="s0">in </span><span class="s1">ancestors:</span>
+            <span class="s1">self.graph.add_node(ancestor[</span><span class="s3">&quot;Id&quot;</span><span class="s1">])</span>
+            <span class="s1">print(</span><span class="s3">f&quot;Added node: </span><span class="s0">{</span><span class="s1">ancestor[</span><span class="s3">'Id'</span><span class="s1">]</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+            <span class="s0">if </span><span class="s1">ancestor[</span><span class="s3">&quot;Father&quot;</span><span class="s1">]:</span>
+                <span class="s1">self.graph.add_edge(ancestor[</span><span class="s3">&quot;Father&quot;</span><span class="s1">]</span><span class="s0">, </span><span class="s1">ancestor[</span><span class="s3">&quot;Id&quot;</span><span class="s1">])</span>
+                <span class="s1">print(</span><span class="s3">f&quot;Added edge: </span><span class="s0">{</span><span class="s1">ancestor[</span><span class="s3">'Father'</span><span class="s1">]</span><span class="s0">} </span><span class="s3">-&gt; </span><span class="s0">{</span><span class="s1">ancestor[</span><span class="s3">'Id'</span><span class="s1">]</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+            <span class="s0">if </span><span class="s1">ancestor[</span><span class="s3">&quot;Mother&quot;</span><span class="s1">]:</span>
+                <span class="s1">self.graph.add_edge(ancestor[</span><span class="s3">&quot;Mother&quot;</span><span class="s1">]</span><span class="s0">, </span><span class="s1">ancestor[</span><span class="s3">&quot;Id&quot;</span><span class="s1">])</span>
+                <span class="s1">print(</span><span class="s3">f&quot;Added edge: </span><span class="s0">{</span><span class="s1">ancestor[</span><span class="s3">'Mother'</span><span class="s1">]</span><span class="s0">} </span><span class="s3">-&gt; </span><span class="s0">{</span><span class="s1">ancestor[</span><span class="s3">'Id'</span><span class="s1">]</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+
+    <span class="s0">def </span><span class="s1">get_parents(self</span><span class="s0">, </span><span class="s1">node):</span>
+        <span class="s0">return </span><span class="s1">list(self.graph.predecessors(node))</span>
+
+    <span class="s0">def </span><span class="s1">find_root(self</span><span class="s0">, </span><span class="s1">node):</span>
+        <span class="s1">root = </span><span class="s0">None</span>
+        <span class="s0">for </span><span class="s1">n </span><span class="s0">in </span><span class="s1">nx.ancestors(self.graph</span><span class="s0">, </span><span class="s1">node):</span>
+            <span class="s0">if </span><span class="s1">self.graph.in_degree(n) == </span><span class="s4">0</span><span class="s1">:</span>
+                <span class="s1">root = n</span>
+                <span class="s0">break</span>
+        <span class="s0">return </span><span class="s1">root</span>
+    <span class="s0">def </span><span class="s1">visualize_tree(self</span><span class="s0">, </span><span class="s1">root):</span>
+        <span class="s1">pos = graphviz_layout(self.graph</span><span class="s0">, </span><span class="s1">prog=</span><span class="s3">'dot'</span><span class="s0">, </span><span class="s1">root=root)</span>
+        <span class="s1">plt.figure(figsize=(</span><span class="s4">8</span><span class="s0">, </span><span class="s4">8</span><span class="s1">))</span>
+        <span class="s1">nx.draw(self.graph</span><span class="s0">, </span><span class="s1">pos</span><span class="s0">, </span><span class="s1">with_labels=</span><span class="s0">True, </span><span class="s1">arrows=</span><span class="s0">False</span><span class="s1">)</span>
+        <span class="s1">plt.show()</span>
+
+    <span class="s0">def </span><span class="s1">get_depth(self</span><span class="s0">, </span><span class="s1">node):</span>
+        <span class="s1">root = self.find_root(node)</span>
+        <span class="s0">return </span><span class="s1">nx.shortest_path_length(self.graph</span><span class="s0">, </span><span class="s1">root</span><span class="s0">, </span><span class="s1">node)</span>
+
+<span class="s2"># LCA algorithm functions</span>
+<span class="s0">def </span><span class="s1">get_ancestors(node</span><span class="s0">, </span><span class="s1">graph):</span>
+    <span class="s1">ancestors = set()</span>
+    <span class="s1">stack = [node]</span>
+    <span class="s0">while </span><span class="s1">stack:</span>
+        <span class="s1">current = stack.pop()</span>
+        <span class="s1">ancestors.add(current)</span>
+        <span class="s1">stack.extend(graph.get_parents(current))</span>
+    <span class="s0">return </span><span class="s1">ancestors</span>
+
+<span class="s0">def </span><span class="s1">lowest_common_ancestor(node1</span><span class="s0">, </span><span class="s1">node2</span><span class="s0">, </span><span class="s1">graph):</span>
+    <span class="s1">ancestors1 = get_ancestors(node1</span><span class="s0">, </span><span class="s1">graph)</span>
+    <span class="s1">print(</span><span class="s3">f&quot;Ancestors of </span><span class="s0">{</span><span class="s1">node1</span><span class="s0">}</span><span class="s3">: </span><span class="s0">{</span><span class="s1">ancestors1</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+    <span class="s1">ancestors2 = get_ancestors(node2</span><span class="s0">, </span><span class="s1">graph)</span>
+    <span class="s1">print(</span><span class="s3">f&quot;Ancestors of </span><span class="s0">{</span><span class="s1">node2</span><span class="s0">}</span><span class="s3">: </span><span class="s0">{</span><span class="s1">ancestors2</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+    <span class="s1">common_ancestors = ancestors1.intersection(ancestors2)</span>
+
+    <span class="s0">if not </span><span class="s1">common_ancestors:</span>
+        <span class="s0">return None</span>
+
+    <span class="s1">min_depth = float(</span><span class="s3">'inf'</span><span class="s1">)</span>
+    <span class="s1">lca = </span><span class="s0">None</span>
+    <span class="s0">for </span><span class="s1">ancestor </span><span class="s0">in </span><span class="s1">common_ancestors:</span>
+        <span class="s1">depth = graph.get_depth(ancestor)</span>
+        <span class="s0">if </span><span class="s1">depth &lt; min_depth:</span>
+            <span class="s1">min_depth = depth</span>
+            <span class="s1">lca = ancestor</span>
+
+    <span class="s1">print(</span><span class="s3">f&quot;Common ancestors: </span><span class="s0">{</span><span class="s1">common_ancestors</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+    <span class="s1">print(</span><span class="s3">f&quot;Lowest common ancestor: </span><span class="s0">{</span><span class="s1">lca</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s1">)</span>
+
+    <span class="s0">return </span><span class="s1">lca</span>
+
+<span class="s2"># Main function</span>
+<span class="s0">def </span><span class="s1">main():</span>
+    <span class="s1">parser = argparse.ArgumentParser()</span>
+    <span class="s1">parser.add_argument(</span><span class="s3">&quot;individual1&quot;</span><span class="s0">, </span><span class="s1">help=</span><span class="s3">&quot;WikiTree ID of the first individual&quot;</span><span class="s1">)</span>
+    <span class="s1">parser.add_argument(</span><span class="s3">&quot;individual2&quot;</span><span class="s0">, </span><span class="s1">help=</span><span class="s3">&quot;WikiTree ID of the second individual&quot;</span><span class="s1">)</span>
+    <span class="s1">args = parser.parse_args()</span>
+
+    <span class="s1">api = WikiTreeAPI()</span>
+    <span class="s1">family_tree_data = api.fetch_family_tree_data(args.individual1</span><span class="s0">, </span><span class="s1">args.individual2)</span>
+
+    <span class="s0">if </span><span class="s1">family_tree_data </span><span class="s0">is None</span><span class="s1">:</span>
+        <span class="s1">print(</span><span class="s3">&quot;Could not fetch family tree data for one or both individuals.&quot;</span><span class="s1">)</span>
+        <span class="s0">return</span>
+
+    <span class="s1">dag = FamilyTreeDAG(family_tree_data[</span><span class="s4">0</span><span class="s1">]</span><span class="s0">, </span><span class="s1">family_tree_data[</span><span class="s4">1</span><span class="s1">]</span><span class="s0">, </span><span class="s1">args.individual1</span><span class="s0">, </span><span class="s1">args.individual2)</span>
+    <span class="s1">lca = lowest_common_ancestor(args.individual1</span><span class="s0">, </span><span class="s1">args.individual2</span><span class="s0">, </span><span class="s1">dag)</span>
+
+    <span class="s0">if </span><span class="s1">lca:</span>
+        <span class="s1">print(</span><span class="s3">f&quot;The most recent common ancestor of </span><span class="s0">{</span><span class="s1">args.individual1</span><span class="s0">} </span><span class="s3">and </span><span class="s0">{</span><span class="s1">args.individual2</span><span class="s0">} </span><span class="s3">is </span><span class="s0">{</span><span class="s1">lca</span><span class="s0">}</span><span class="s3">.&quot;</span><span class="s1">)</span>
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s1">print(</span><span class="s3">f&quot;No common ancestor found for </span><span class="s0">{</span><span class="s1">args.individual1</span><span class="s0">} </span><span class="s3">and </span><span class="s0">{</span><span class="s1">args.individual2</span><span class="s0">}</span><span class="s3">.&quot;</span><span class="s1">)</span>
+
+<span class="s0">if </span><span class="s1">__name__ == </span><span class="s3">&quot;__main__&quot;</span><span class="s1">:</span>
+    <span class="s1">main()</span>
+
+</pre>
+</body>
+</html>
